@@ -13,7 +13,7 @@ def simem(b1, b2):
     print(sims)
 
 
-with open("1.txt") as f:
+with open("in.txt") as f:
     a = [line.split() for line in f.readlines()]
     b1, b2 = [list(x) for x in zip(*a)]
     distem(b1, b2)

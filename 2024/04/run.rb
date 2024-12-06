@@ -66,10 +66,10 @@ class MapHandler
       return false
     end
     checks = XDIRS.map { |dir| @data[i+dir[0]][j+dir[1]] }
-    if (checks[0] == "M" && checks[1] == "S" 
-        || checks[0] == "S" && checks[1] == "M") 
-      && (checks[2] == "M" && checks[3] == "S" 
-          || checks[2] == "S" && checks[3] == "M")
+    if (checks[0] == "M" && checks[1] == "S" ||
+        checks[0] == "S" && checks[1] == "M") &&
+       (checks[2] == "M" && checks[3] == "S" ||
+        checks[2] == "S" && checks[3] == "M")
       return true
     end
     return false
