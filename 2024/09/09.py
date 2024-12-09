@@ -1,20 +1,4 @@
 import sys
-from pprint import pprint
-
-
-class Block:
-    def __init__(self, index, starts, size):
-        self.index = index
-        self.starts = starts
-        self.size = size
-        self.isFree = index is None
-
-    @property
-    def ends(self):
-        return self.starts + self.size
-
-    def __repr__(self):
-        return f"[{self.index}] [{self.starts}:{self.ends}] s={self.size} isFree={self.isFree}"
 
 
 class DiskMap:
@@ -27,86 +11,95 @@ class DiskMap:
     def __init__(self, map):
         self.originalMap = map
         self.totalSize = sum(map)
-        self.originalBlocks = self._getBlocks(map)
-        self.layout = self._getLayoutFromBlocks()
+        self.layout = self._getOriginalLayout()
 
-    def _getBlocks(self, map):
+    def _getOriginalLayout(self):
         l = []
-        runningBlockPosition = 0
-        for i, size in enumerate(map):
-            isFreeSpace = i % 2
-            blockIndex = i // 2 if not isFreeSpace else None
-            start = runningBlockPosition
-            runningBlockPosition = runningBlockPosition + size
-            b = Block(blockIndex, start, size)
-            l.append(b)
-        return l
-
-    def _getLayoutFromBlocks(self):
-        l = ["." for _ in range(self.totalSize)]
-        activeBlocks = [b for b in self.originalBlocks if not b.isFree]
-        for b in activeBlocks:
-            for i in range(b.starts, b.ends):
-                l[i] = str(b.index)
-        return l
+        layoutNdx = 0
+        for ndx, size in enumerate(self.originalMap):
+            isFree = ndx % 2
+            filen = ndx // 2
+            icon = str(filen) if not isFree else "."
+            l.append(list(icon * size))
+            layoutNdx += size
+        return [x for iconl in l for x in iconl]
 
     def __repr__(self):
         return "".join(self.layout)
 
+    def reset(self):
+        self.layout = self._getOriginalLayout()
+
+    @staticmethod
+    def getFreeSizeAscending(l, start):
+        size = 0
+        while l[start] == ".":
+            start += 1
+            size += 1
+        return size
+
+    @staticmethod
+    def getFileSizeDescending(l, end):
+        size = 0
+        filen = l[end]
+        while l[end] == filen:
+            end -= 1
+            size += 1
+        return size
+
+    @staticmethod
+    def swapMem(l, start, end, size):
+        while size:
+            l[start], l[end] = l[end], l[start]
+            start += 1
+            end -= 1
+            size -= 1
+
     def freeSpaceConsecutive(self):
-        reorderedBlocks = self.originalBlocks[:]
-        freeAscIter = (i for i, b in enumerate(reorderedBlocks) if b.isFree)
-        leftmostFree = next(freeAscIter)
-        lastMovableOccupied = len(reorderedBlocks) - 1
-        while reorderedBlocks[lastMovableOccupied].isFree:
-            lastMovableOccupied -= 1
+        consecutiveLayout = self.layout[:]
+        lastOccupied = len(consecutiveLayout) - 1
+        leftmostFree = consecutiveLayout.index(".")
 
-        while lastMovableOccupied > 0:
-            if leftmostFree > lastMovableOccupied:
-                freeAscIter = (i for i, b in enumerate(reorderedBlocks) if b.isFree)
-                leftmostFree = next(freeAscIter)
-                if leftmostFree > lastMovableOccupied:
+        while lastOccupied > 0:
+            print("start", leftmostFree, lastOccupied, sep="\n")
+            if (
+                lastOccupied < leftmostFree
+            ):  # scanned files past current freespace, attempt to look for freespace from start of disk
+                leftmostFree = consecutiveLayout.index(".")
+                if lastOccupied < leftmostFree:
                     break
-            print(
-                "startloop",
-                reorderedBlocks[leftmostFree],
-                reorderedBlocks[lastMovableOccupied],
-                sep="\n",
-            )
-            while (
-                reorderedBlocks[leftmostFree].size
-                < reorderedBlocks[lastMovableOccupied].size
-            ):
-                print(
-                    "toobig",
-                    reorderedBlocks[leftmostFree],
-                    reorderedBlocks[lastMovableOccupied],
-                    sep="\n",
-                )
-                lastMovableOccupied -= 1
-                while reorderedBlocks[lastMovableOccupied].isFree:
-                    lastMovableOccupied -= 1
-            if leftmostFree < lastMovableOccupied:
-                reorderedBlocks[leftmostFree], reorderedBlocks[lastMovableOccupied] = (
-                    reorderedBlocks[lastMovableOccupied],
-                    reorderedBlocks[leftmostFree],
-                )
-                (
-                    reorderedBlocks[leftmostFree].starts,
-                    reorderedBlocks[lastMovableOccupied].starts,
-                ) = (
-                    reorderedBlocks[lastMovableOccupied].starts,
-                    reorderedBlocks[leftmostFree].starts,
-                )
-                while reorderedBlocks[lastMovableOccupied].isFree:
-                    lastMovableOccupied -= 1
-            leftmostFree = next(freeAscIter)
 
-        self.originalBlocks = reorderedBlocks
-        self.layout = self._getLayoutFromBlocks()
+            freeSize = DiskMap.getFreeSizeAscending(consecutiveLayout, leftmostFree)
+            filesize = DiskMap.getFileSizeDescending(consecutiveLayout, lastOccupied)
+            while filesize > freeSize:
+                print("toobig", leftmostFree, lastOccupied, sep="\n")
+                # skip to next file
+                lastOccupied -= filesize
+                while consecutiveLayout[lastOccupied] == ".":
+                    lastOccupied -= 1
+                filesize = DiskMap.getFileSizeDescending(
+                    consecutiveLayout, lastOccupied
+                )
+
+            print("not-toobig", leftmostFree, lastOccupied, sep="\n")
+            if (
+                not lastOccupied < leftmostFree
+            ):  # swap disk and move pointers if we didnt scan past current freespace
+                print("swapping", leftmostFree, lastOccupied, sep="\n")
+                DiskMap.swapMem(consecutiveLayout, leftmostFree, lastOccupied, filesize)
+                leftmostFree += (
+                    freesize  # unclear if should skip past freesize but let's
+                )
+                lastOccupied -= filesize
+                while consecutiveLayout[leftmostFree] != ".":
+                    leftmostFree += 1
+                while consecutiveLayout[lastOccupied] == ".":
+                    lastOccupied -= 1
+
+        self.layout = consecutiveLayout
 
     def freeSpaceFragmented(self):
-        compactLayout = self._getLayoutFromBlocks()
+        compactLayout = self.layout[:]
         lastOccupied = len(compactLayout) - 1
         firstFree = compactLayout.index(".")
 
@@ -133,8 +126,7 @@ if __name__ == "__main__":
     print(d.checksum)
 
     print("=== consecutive ===")
-    d = None
-    d = DiskMap(parsedMap)
+    d.reset()
     print(d)
     d.freeSpaceConsecutive()
     print(d)
