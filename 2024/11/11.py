@@ -1,86 +1,42 @@
 import sys
+from pprint import pprint
+from collections import defaultdict
 
-class Stone:
-    def __init__(self, value, prev):
-        self.value = value
-        self.next = None
-        self.prev = prev
+def get_stones(fn):
+    with open(fn) as f:
+        vals = f.read().split()
 
-    def tick(self):
-        if self.value == 0:
-            self.value = 1
-        elif len(str(self.value)) % 2 == 0:
-            ls = self.split()
-            return True, ls
-        else:
-            self.value *= 2024
-        return False, None
-
-    def split(self):
-        s = str(self.value)
-        lhs, rhs = s[:len(s)//2], s[len(s)//2:]
-        ls = Stone(int(lhs), self.prev)
-        rs = Stone(int(rhs), ls)
-        if self.prev is not None:
-            self.prev.next = ls
-        ls.next = rs
-        if self.next is not None:
-            self.next.prev = rs
-        rs.next = self.next
-        return ls
+    stones = defaultdict(int)
+    for stone in vals:
+        stones[int(stone)] += 1
+    return stones
 
 
-class Stones:
-    def __init__(self, fn):
-        with open(fn) as f:
-            vals = f.read().split()
+def tickstone(stone, amount, stones):
+    if stone == 0:
+        stones[1] += amount
+    elif len(str(stone)) % 2 == 0:
+        left = str(stone)[len(str(stone))//2:]
+        right = str(stone)[:len(str(stone))//2]
+        stones[int(left)] += amount
+        stones[int(right)] += amount
+    else:
+        newstone = stone * 2024
+        stones[newstone] += amount
 
-        self.root = None
 
-        prev = None
-        for val in vals:
-            s = Stone(int(val), prev)
-            if prev is None:
-                self.root = s
-            else:
-                prev.next = s
-            prev = s
+def tick(stones):
+    nextgen = defaultdict(int)
+    [tickstone(stone, stones[stone], nextgen) for stone in stones]
+    return nextgen
 
-    def size(self):
-        sz = 0
-        n = self.root
-        while n is not None:
-            sz += 1
-            n = n.next
-        return sz
-
-    def tick(self):
-        n = self.root
-        isroot = True
-        while n is not None:
-            wasSplit, new = n.tick()
-            if wasSplit:
-                n = new.next.next
-                if isroot:
-                    self.root = new
-            else:
-                n = n.next
-            isroot = False
-
-    def __repr__(self):
-        l = []
-        n = self.root
-        while n is not None:
-            l.append(str(n.value))
-            n = n.next
-        return " ".join(l)
 
 if __name__ == "__main__":
-    ss = Stones(sys.argv[1])
-    print(ss)
+    ss = get_stones(sys.argv[1])
+    pprint(ss)
 
     ticks = int(sys.argv[2])
-    for i in range(ticks):
-        ss.tick()
-        print(i)
-    print(ss.size())
+    for i in range(int(ticks)):
+        ss = tick(ss)
+    pprint(ss)
+    print(sum(ss.values()))
