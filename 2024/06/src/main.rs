@@ -142,7 +142,7 @@ fn count(map: &Vec<Vec<char>>, target: char) -> usize {
 }
 
 fn main() -> std::io::Result<()> {
-    let file = File::open("in.txt")?;
+    let file = File::open("in2.txt")?;
     let reader = io::BufReader::new(file);
     let mut prev = (0,0);
     let mut loops = 0;

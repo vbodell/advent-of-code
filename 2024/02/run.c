@@ -48,12 +48,13 @@ int isdampsafe(int* levels, int size, int ignore) {
 
 
 int main(int argc, char** argv) {
-    int success = 1, parsed = 1, sum = 0;
+    int success = 1, parsed = 1, sum = 0, dampsum = 0;
     int number, i, offset, bytes_read, lines = 0;
     FILE *f;
     char buff[SIZE];
     int line[NUMS];
     int safe[SIZE];
+    int dampsafe[SIZE];
 
     for (int i = 0; i < SIZE; i++) {
         buff[i] = 0;
@@ -61,7 +62,7 @@ int main(int argc, char** argv) {
         safe[i] = 0;
     }
 
-    f = fopen("in.txt", "r");
+    f = fopen("in2.txt", "r");
     while (success) {
         success = fgets(buff, SIZE, f) == buff;
         if (!success) break;
@@ -77,6 +78,8 @@ int main(int argc, char** argv) {
             line[i++] = number;
         } while (parsed == 1);
 
+        if (issafe(line, i))
+            sum++;
         for (int j=0; j < i; j++) {
             if (isdampsafe(line, i, j)) {
                 safe[lines] = 1;
@@ -88,8 +91,9 @@ int main(int argc, char** argv) {
     fclose(f);
 
     for (i = 0; i < lines; i++) {
-        sum += safe[i];
+        dampsafe += safe[i];
     }
     printf("sum=%d\n", sum);
+    printf("dampsum=%d\n", dampsum);
     return 0;
 }

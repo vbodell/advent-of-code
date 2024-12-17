@@ -14,15 +14,17 @@ class DiskMap:
         self.layout = self._getOriginalLayout()
 
     def _getOriginalLayout(self):
-        l = []
+        l = ["." for _ in range(self.totalSize)]
         layoutNdx = 0
         for ndx, size in enumerate(self.originalMap):
             isFree = ndx % 2
             filen = ndx // 2
-            icon = str(filen) if not isFree else "."
-            l.append(list(icon * size))
+            icon = str(filen)
+            if not isFree:
+                for ln in range(layoutNdx, layoutNdx + size):
+                    l[ln] = icon
             layoutNdx += size
-        return [x for iconl in l for x in iconl]
+        return l
 
     def __repr__(self):
         return "".join(self.layout)
@@ -58,10 +60,11 @@ class DiskMap:
     def freeSpaceConsecutive(self):
         consecutiveLayout = self.layout[:]
         lastOccupied = len(consecutiveLayout) - 1
+        while consecutiveLayout[lastOccupied] == ".":
+            lastOccupied -= 1
         leftmostFree = consecutiveLayout.index(".")
 
         while lastOccupied > 0:
-            print("start", leftmostFree, lastOccupied, sep="\n")
             if (
                 lastOccupied < leftmostFree
             ):  # scanned files past current freespace, attempt to look for freespace from start of disk
@@ -71,30 +74,36 @@ class DiskMap:
 
             freeSize = DiskMap.getFreeSizeAscending(consecutiveLayout, leftmostFree)
             filesize = DiskMap.getFileSizeDescending(consecutiveLayout, lastOccupied)
+            # print("start", leftmostFree, lastOccupied, freeSize, filesize)
             while filesize > freeSize:
-                print("toobig", leftmostFree, lastOccupied, sep="\n")
-                # skip to next file
-                lastOccupied -= filesize
-                while consecutiveLayout[lastOccupied] == ".":
-                    lastOccupied -= 1
-                filesize = DiskMap.getFileSizeDescending(
-                    consecutiveLayout, lastOccupied
-                )
-
-            print("not-toobig", leftmostFree, lastOccupied, sep="\n")
-            if (
-                not lastOccupied < leftmostFree
-            ):  # swap disk and move pointers if we didnt scan past current freespace
-                print("swapping", leftmostFree, lastOccupied, sep="\n")
-                DiskMap.swapMem(consecutiveLayout, leftmostFree, lastOccupied, filesize)
-                leftmostFree += (
-                    freesize  # unclear if should skip past freesize but let's
-                )
-                lastOccupied -= filesize
-                while consecutiveLayout[leftmostFree] != ".":
+                # skip to next freespace
+                # print("toobig", leftmostFree, lastOccupied, freeSize, filesize)
+                leftmostFree += freeSize
+                while (
+                    consecutiveLayout[leftmostFree] != "."
+                    and leftmostFree < lastOccupied
+                ):
                     leftmostFree += 1
-                while consecutiveLayout[lastOccupied] == ".":
-                    lastOccupied -= 1
+
+                if leftmostFree >= lastOccupied:
+
+                    # print("passed", leftmostFree, lastOccupied, freeSize, filesize)
+                    break
+
+                freeSize = DiskMap.getFreeSizeAscending(consecutiveLayout, leftmostFree)
+
+            if (
+                not leftmostFree >= lastOccupied
+            ):  # swap disk and move pointers if we didnt scan past current freespace
+                # print("swap", leftmostFree, lastOccupied, freeSize, filesize)
+
+                DiskMap.swapMem(consecutiveLayout, leftmostFree, lastOccupied, filesize)
+                leftmostFree = consecutiveLayout.index(".")
+
+            # print("goto-next-file", leftmostFree, lastOccupied, freeSize, filesize)
+            lastOccupied -= filesize
+            while consecutiveLayout[lastOccupied] == ".":
+                lastOccupied -= 1
 
         self.layout = consecutiveLayout
 
@@ -114,19 +123,21 @@ class DiskMap:
 
     @property
     def checksum(self):
-        return sum([i * int(val) for i, val in enumerate(self.layout) if val != "."])
+        numvals = [int(val) if val != "." else 0 for val in self.layout]
+        return sum([i * val for i, val in enumerate(numvals)])
 
 
 if __name__ == "__main__":
     parsedMap = DiskMap.parse(sys.argv[1])
     d = DiskMap(parsedMap)
-    print(d)
-    d.freeSpaceFragmented()
-    print(d)
-    print(d.checksum)
+    # print(d)
+    # d.freeSpaceFragmented()
+    # print(d)
+    # print(d.checksum)
 
-    print("=== consecutive ===")
-    d.reset()
-    print(d)
+    # d.reset()
+    print(d.totalSize)
+    # print(d)
     d.freeSpaceConsecutive()
-    print(d)
+    # print(d)
+    print(d.checksum)
